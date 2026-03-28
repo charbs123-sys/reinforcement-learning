@@ -1,0 +1,6 @@
+cmake -B build -G "Visual Studio 18 2026"
+cmake --build build
+
+.\build\Debug\MyGame.exe
+
+cmake -B build -G "Visual Studio 18 2026" && cmake --build build && .\build\Debug\MyGame.exe

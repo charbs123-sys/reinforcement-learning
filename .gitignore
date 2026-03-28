@@ -1,0 +1,6 @@
+build/
+.venvs/
+.venvs/drl/bin/activate
+libs/
+notes/
+venv/
