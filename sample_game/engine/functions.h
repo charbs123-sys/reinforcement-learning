@@ -8,6 +8,7 @@ struct BoundingBox {
 	glm::vec3 modelMin;
 	glm::vec3 modelMax;
 	float radius;
+	glm::mat4 transformation;
 };
 
 bool checkCollision(glm::vec3 playerPos, glm::vec3 cubeMin, glm::vec3 cubeMax);

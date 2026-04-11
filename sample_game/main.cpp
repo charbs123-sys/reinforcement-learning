@@ -51,7 +51,7 @@ bool checkCollision(glm::vec3 playerPos, glm::vec3 cubeMin, glm::vec3 cubeMax);
 void LogVec(glm::vec3 vecToLog, std::string name);
 void cursor_enter_callback(GLFWwindow* window, int entered);
 struct BoundingBox;
-BoundingBox model_boundaries(Model Cube, float radius, float y_translation, glm::vec3 world_translation, bool is_rotation, glm::vec3 scale);
+BoundingBox model_boundaries(Model Cube, float radius, float y_translation, glm::vec3 world_translation, bool is_rotation, glm::vec3 scale, float z_offset);
 glm::vec3 rayPlaneIntersection(glm::vec3 ray, glm::vec3 playerPos, glm::vec3 cameraPos);
 glm::vec3 RaycastCursor(double mouse_x, double mouse_y, int width, int height, glm::mat4 projection_matrix, glm::mat4 view_matrix);
 glm::vec3 calculate_player_local_center(const Model& model);
@@ -165,12 +165,14 @@ int main() {
 
     // Cube Properties
     float radius = 1.0f;
-    float y_translation = -4;
+    float y_translation = -1;
+    float offset_z = -10; // only for rendered object not the collision
     glm::vec3 world_translation = glm::vec3(27.2f, -21.66f, 25.76f);
-    bool should_rotate = false;
+    bool should_rotate = true;
     glm::vec3 scale = scaled_tiles;
+    
 
-    BoundingBox cubeBounds = model_boundaries(Cube, radius, y_translation, world_translation, should_rotate, scale);
+    BoundingBox cubeBounds = model_boundaries(Cube, radius, y_translation, world_translation, should_rotate, scale, offset_z);
     std::vector<BoundingBox> colliders = { cubeBounds };
 
     
@@ -187,7 +189,7 @@ int main() {
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
 
-        processInput(window, playerPos, colliders);
+        processInput(window, playerLocalCenter, colliders);
 
         glClearColor(0.4f, 0.4f, 0.4f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -247,12 +249,7 @@ int main() {
         ourShader.setMat4("model", model);
         MarbelFloor.Draw(ourShader);
 
-        model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(0.0, -4, 0.0));
-        model = glm::translate(model, glm::vec3(27.2f, -21.66f, 25.76f));
-        model = glm::rotate(model, glm::radians(90.0f), glm::vec3(1.0, 0.0, 0.0));
-        model = glm::scale(model, scaled_tiles);
-        ourShader.setMat4("model", model);
+        ourShader.setMat4("model", cubeBounds.transformation);
         Cube.Draw(ourShader);
 
         if (i % 50 == 0)
@@ -260,16 +257,12 @@ int main() {
         LogVec(playerWorldTarget, "Player World ");
         LogVec(playerLocalCenter, "Local Player Center");
         LogVec(playerPos, "Player Position");
-        // LogVec(cubeMin, "Min of Cube");
-        // LogVec(cubeMax, "Max of Cube");
         LogVec(plane_point, "Point of intersection");
         LogVec(ray_world, "ray_world");
         LogVec(plane_point, "plane_point");
         LogVec(cubeBounds.modelMin, "cubeBounds.modelMin");
         LogVec(cubeBounds.modelMax, "cubeBounds.modelMax");
         std::cout << "cubeBounds.radius " << cubeBounds.radius << std::endl;
-        // std::cout << "playerPos coords " << playerPos.x << " " << playerPos.y << " " << playerPos.z << std::endl;
-        // std::cout << "Camera world target coords" << camera.Position.x << " " << camera.Position.y << " " << camera.Position.z << std::endl;
         }
         i += 1;
 
@@ -418,6 +411,14 @@ void calculate_stride(Model MarbelFloor) {
 
 
 bool checkCollision(glm::vec3 playerPos, glm::vec3 cubeMin, glm::vec3 cubeMax) {
+    std::cout << "Collision compare -> playerPos: ("
+              << playerPos.x << ", " << playerPos.y << ", " << playerPos.z
+              << ") | boxMin: ("
+              << cubeMin.x << ", " << cubeMin.y << ", " << cubeMin.z
+              << ") | boxMax: ("
+              << cubeMax.x << ", " << cubeMax.y << ", " << cubeMax.z
+              << ")" << std::endl;
+
     bool collideX = playerPos.x >= cubeMin.x && playerPos.x <= cubeMax.x;
     bool collideZ = playerPos.z >= cubeMin.z && playerPos.z <= cubeMax.z;
     return collideX && collideZ;
@@ -461,18 +462,22 @@ glm::vec3 rayPlaneIntersection(glm::vec3 ray, glm::vec3 playerPos, glm::vec3 cam
     return point;
 }
 
-BoundingBox model_boundaries(Model Cube, float radius, float y_translation, glm::vec3 world_translation, bool is_rotation, glm::vec3 scale)
+BoundingBox model_boundaries(Model Cube, float radius, float y_translation, glm::vec3 world_translation, bool is_rotation, glm::vec3 scale, float z_offset)
 {
     glm::vec3 localMin, localMax;
     calculate_model_local_center(Cube, localMin, localMax);
     glm::mat4 cubeModel = glm::mat4(1.0f);
-    cubeModel = glm::translate(cubeModel, glm::vec3(0.0, y_translation, 0.0));
+    cubeModel = glm::translate(cubeModel, glm::vec3(0.0, y_translation, 0.0f));
     cubeModel = glm::translate(cubeModel, world_translation);
+    glm::mat4 cubeModelOffset = glm::translate(cubeModel, glm::vec3(0.0f, 0.0f, z_offset));
     if (is_rotation)
     {
         cubeModel = glm::rotate(cubeModel, glm::radians(90.0f), glm::vec3(1.0, 0.0, 0.0));
+        cubeModelOffset = glm::rotate(cubeModelOffset, glm::radians(90.0f), glm::vec3(1.0, 0.0, 0.0));
     }
     cubeModel = glm::scale(cubeModel, scale);
+    cubeModelOffset = glm::scale(cubeModelOffset, scale);
+   
 
     glm::vec3 localCorners[8] = {
         glm::vec3(localMin.x, localMin.y, localMin.z),
@@ -501,5 +506,5 @@ BoundingBox model_boundaries(Model Cube, float radius, float y_translation, glm:
 
     glm::vec3 cubeMin(worldMin.x - radius, worldMin.y, worldMin.z - radius);
     glm::vec3 cubeMax(worldMax.x + radius, worldMax.y, worldMax.z + radius);
-    return BoundingBox{cubeMin, cubeMax, radius};
+    return BoundingBox{cubeMin, cubeMax, radius, cubeModelOffset};
 }

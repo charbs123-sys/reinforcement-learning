@@ -4,3 +4,9 @@ build/
 libs/
 notes/
 venv/
+.virtual*
+assimp/
+drl-2ed/
+learning_opengl/
+sample_game/assets
+sample_game/devlogs
