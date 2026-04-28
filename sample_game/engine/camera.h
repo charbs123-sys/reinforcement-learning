@@ -5,8 +5,13 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
+#include "functions.h"
+
+
+
 // Defines several possible options for camera movement. Used as abstraction to stay away from window-system specific input methods
 enum Camera_Movement {
+    NONE,
     FORWARD,
     BACKWARD,
     LEFT,
@@ -16,7 +21,7 @@ enum Camera_Movement {
 // Default camera values
 const float YAW         = -90.0f;
 const float PITCH       =  0.0f;
-const float SPEED       =  2.5f;
+const float SPEED       =  50.0f;
 const float SENSITIVITY =  0.1f;
 const float ZOOM        =  45.0f;
 
@@ -38,6 +43,7 @@ public:
     float MovementSpeed;
     float MouseSensitivity;
     float Zoom;
+    Camera_Movement MostRecentMovement = NONE;
 
     // constructor with vectors
     Camera(glm::vec3 position = glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f), float yaw = YAW, float pitch = PITCH) : Front(glm::vec3(0.0f, 0.0f, -1.0f)), MovementSpeed(SPEED), MouseSensitivity(SENSITIVITY), Zoom(ZOOM)
@@ -59,46 +65,85 @@ public:
     }
 
     // returns the view matrix calculated using Euler Angles and the LookAt Matrix
-    glm::mat4 GetViewMatrix()
-    {
-        return glm::lookAt(Position, Position + Front, Up);
+    glm::mat4 GetViewMatrix(glm::vec3 position, glm::vec3 target, bool fix_camera)
+    {   
+        /*
+        position -> origin of camera
+        target -> where you want to look at
+        Up vector
+        */
+        if (fix_camera)
+        {
+            return glm::lookAt(position, target, WorldUp);
+        }
+        else 
+        {
+            return glm::lookAt(Position, Position + Front, Up);
+        }
     }
 
     // processes input received from any keyboard-like input system. Accepts input parameter in the form of camera defined ENUM (to abstract it from windowing systems)
-    void ProcessKeyboard(Camera_Movement direction, float deltaTime)
+    void ProcessKeyboard(Camera_Movement direction, float deltaTime, glm::vec3& playerPos, glm::vec3 playerLocalCenter, const std::vector<BoundingBox>& colliders, int action)
     {
         float velocity = MovementSpeed * deltaTime;
-        if (direction == FORWARD)
-            Position += Front * velocity;
-        if (direction == BACKWARD)
-            Position -= Front * velocity;
-        if (direction == LEFT)
-            Position -= Right * velocity;
-        if (direction == RIGHT)
-            Position += Right * velocity;
-    }
+        glm::vec3 delta = glm::vec3(0.0f);
 
-    // processes input received from a mouse input system. Expects the offset value in both the x and y direction.
-    void ProcessMouseMovement(float xoffset, float yoffset, GLboolean constrainPitch = true)
-    {
-        xoffset *= MouseSensitivity;
-        yoffset *= MouseSensitivity;
+        if (direction == FORWARD or action == 1)  delta = Front * velocity;
+        if (direction == BACKWARD or action == 3) delta = -(Front * velocity);
+        if (direction == LEFT or action == 4)     delta = -(Right * velocity);
+        if (direction == RIGHT or action == 2)    delta = Right * velocity;
 
-        Yaw   += xoffset;
-        Pitch += yoffset;
-
-        // make sure that when pitch is out of bounds, screen doesn't get flipped
-        if (constrainPitch)
+        // Test X axis
+        playerPos.x += delta.x;
+        Position.x += delta.x;
+        glm::mat4 testModel = glm::translate(glm::mat4(1.0f), playerPos);
+        glm::vec3 testTarget = glm::vec3(testModel * glm::vec4(playerLocalCenter, 1.0f));
+        for (const BoundingBox& box : colliders)
         {
-            if (Pitch > 89.0f)
-                Pitch = 89.0f;
-            if (Pitch < -89.0f)
-                Pitch = -89.0f;
+            if (checkCollision(testTarget, box.modelMin, box.modelMax))
+            {
+                playerPos.x -= delta.x;
+                Position.x -= delta.x;
+                break;
+            }
         }
 
-        // update Front, Right and Up Vectors using the updated Euler angles
-        updateCameraVectors();
+        // Test Z axis
+        playerPos.z += delta.z;
+        Position.z += delta.z;
+        testModel = glm::translate(glm::mat4(1.0f), playerPos);
+        testTarget = glm::vec3(testModel * glm::vec4(playerLocalCenter, 1.0f));
+        for (const BoundingBox& box : colliders)
+        {
+            if (checkCollision(testTarget, box.modelMin, box.modelMax))
+            {
+                playerPos.z -= delta.z;
+                Position.z -= delta.z;
+                break;
+            }
+        }
     }
+    // processes input received from a mouse input system. Expects the offset value in both the x and y direction.
+    // void ProcessMouseMovement(float xoffset, float yoffset, GLboolean constrainPitch = true)
+    // {
+    //     xoffset *= MouseSensitivity;
+    //     yoffset *= MouseSensitivity;
+
+    //     Yaw   += xoffset;
+    //     Pitch += yoffset;
+
+    //     // make sure that when pitch is out of bounds, screen doesn't get flipped
+    //     if (constrainPitch)
+    //     {
+    //         if (Pitch > 89.0f)
+    //             Pitch = 89.0f;
+    //         if (Pitch < -89.0f)
+    //             Pitch = -89.0f;
+    //     }
+
+    //     // update Front, Right and Up Vectors using the updated Euler angles
+    //     updateCameraVectors();
+    // }
 
     // processes input received from a mouse scroll-wheel event. Only requires input on the vertical wheel-axis
     void ProcessMouseScroll(float yoffset)
@@ -108,6 +153,16 @@ public:
             Zoom = 1.0f;
         if (Zoom > 45.0f)
             Zoom = 45.0f;
+    }
+
+    void SetPosition(glm::vec3 position)
+    {
+        Position = position;
+    }
+
+    void LogPosition()
+    {
+        std::cout << Position.x << " " << Position.y << " " << Position.z << std::endl;
     }
 
 private:
