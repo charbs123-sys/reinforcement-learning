@@ -206,7 +206,7 @@ unsigned int TextureFromFile(const char *path, const string &directory, bool gam
     filename = directory + '/' + filename;
 
     unsigned int textureID;
-    glGenTextures(1, &textureID);
+    glGenTextures(1, &textureID); // creating the texture
 
     int width, height, nrComponents;
     unsigned char *data = stbi_load(filename.c_str(), &width, &height, &nrComponents, 0);
@@ -222,9 +222,10 @@ unsigned int TextureFromFile(const char *path, const string &directory, bool gam
 
         glBindTexture(GL_TEXTURE_2D, textureID);
         glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
-        glGenerateMipmap(GL_TEXTURE_2D);
+        glGenerateMipmap(GL_TEXTURE_2D); // generates mip maps for the texture -> smaller resolutions for when the texture is further away
 
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        // s, t, r -> treated as x, y and z axis -> we implement GL_REPEAT or any other rendition to these specific axes
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT); // basically says how we want to treat scaled images
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);

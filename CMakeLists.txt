@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 3.15)
 project(MyGame)
 
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
 set(ASSIMP_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/libs/assimp/include)
 set(ASSIMP_LIB_DEBUG ${CMAKE_SOURCE_DIR}/libs/assimp/lib/assimp-vc145-mtd.lib)
 set(ASSIMP_DLL_DEBUG ${CMAKE_SOURCE_DIR}/libs/assimp/bin/assimp-vc145-mtd.dll)

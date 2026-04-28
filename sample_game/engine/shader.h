@@ -1,4 +1,4 @@
-#ifndef SHADER_H
+#ifndef SHADER_H // tells cpp not to open up the file twice
 #define SHADER_H
 
 #include <glad/glad.h>
@@ -49,8 +49,8 @@ public:
 
         // Vertex Shader
         vertex = glCreateShader(GL_VERTEX_SHADER); // Initialize a shader of vertex type
-        glShaderSource(vertex, 1, &vShaderCode, NULL); // attaches source code to vertex shader
-        glCompileShader(vertex); // compiles the shader
+        glShaderSource(vertex, 1, &vShaderCode, NULL); // attaches source code to vertex shader, 1 means we are using one string for the whole shader
+        glCompileShader(vertex); // compiles the shader since program doesn't understand the shadre otherwise
 
         fragment = glCreateShader(GL_FRAGMENT_SHADER);
         glShaderSource(fragment, 1, &fShaderCode, NULL);
@@ -75,7 +75,8 @@ public:
     // utility uniform functions
     // ------------------------------------------------------------------------
     void setBool(const std::string &name, bool value) const
-    {         
+    {   
+        // Getting the location and setting the uniform variable in the shader
         glUniform1i(glGetUniformLocation(ID, name.c_str()), (int)value); 
     }
     // ------------------------------------------------------------------------

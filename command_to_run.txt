@@ -3,4 +3,8 @@ cmake --build build
 
 .\build\Debug\MyGame.exe
 
+cmake -B build -G "Visual Studio 18 2026" -DBUILD_PYTHON_BINDINGS=OFF && cmake --build build && .\build\Debug\MyGame.exe
 cmake -B build -G "Visual Studio 18 2026" && cmake --build build && .\build\Debug\MyGame.exe
+cmake -B build -G "Visual Studio 18 2026" -DBUILD_PYTHON_BINDINGS=ON && cmake --build build --config Debug && .\build\Debug\MyGame.exe
+
+cmake -B build -G "Visual Studio 18 2026" -DBUILD_PYTHON_BINDINGS=ON -Upybind11_DIR && cmake --build build --config Debug && .\build\Debug\MyGame.exe

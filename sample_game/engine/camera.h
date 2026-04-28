@@ -67,6 +67,11 @@ public:
     // returns the view matrix calculated using Euler Angles and the LookAt Matrix
     glm::mat4 GetViewMatrix(glm::vec3 position, glm::vec3 target, bool fix_camera)
     {   
+        /*
+        position -> origin of camera
+        target -> where you want to look at
+        Up vector
+        */
         if (fix_camera)
         {
             return glm::lookAt(position, target, WorldUp);
@@ -78,15 +83,15 @@ public:
     }
 
     // processes input received from any keyboard-like input system. Accepts input parameter in the form of camera defined ENUM (to abstract it from windowing systems)
-    void ProcessKeyboard(Camera_Movement direction, float deltaTime, glm::vec3& playerPos, glm::vec3 playerLocalCenter, const std::vector<BoundingBox>& colliders)
+    void ProcessKeyboard(Camera_Movement direction, float deltaTime, glm::vec3& playerPos, glm::vec3 playerLocalCenter, const std::vector<BoundingBox>& colliders, int action)
     {
         float velocity = MovementSpeed * deltaTime;
         glm::vec3 delta = glm::vec3(0.0f);
 
-        if (direction == FORWARD)  delta = Front * velocity;
-        if (direction == BACKWARD) delta = -(Front * velocity);
-        if (direction == LEFT)     delta = -(Right * velocity);
-        if (direction == RIGHT)    delta = Right * velocity;
+        if (direction == FORWARD or action == 1)  delta = Front * velocity;
+        if (direction == BACKWARD or action == 3) delta = -(Front * velocity);
+        if (direction == LEFT or action == 4)     delta = -(Right * velocity);
+        if (direction == RIGHT or action == 2)    delta = Right * velocity;
 
         // Test X axis
         playerPos.x += delta.x;
@@ -119,26 +124,26 @@ public:
         }
     }
     // processes input received from a mouse input system. Expects the offset value in both the x and y direction.
-    void ProcessMouseMovement(float xoffset, float yoffset, GLboolean constrainPitch = true)
-    {
-        xoffset *= MouseSensitivity;
-        yoffset *= MouseSensitivity;
+    // void ProcessMouseMovement(float xoffset, float yoffset, GLboolean constrainPitch = true)
+    // {
+    //     xoffset *= MouseSensitivity;
+    //     yoffset *= MouseSensitivity;
 
-        Yaw   += xoffset;
-        Pitch += yoffset;
+    //     Yaw   += xoffset;
+    //     Pitch += yoffset;
 
-        // make sure that when pitch is out of bounds, screen doesn't get flipped
-        if (constrainPitch)
-        {
-            if (Pitch > 89.0f)
-                Pitch = 89.0f;
-            if (Pitch < -89.0f)
-                Pitch = -89.0f;
-        }
+    //     // make sure that when pitch is out of bounds, screen doesn't get flipped
+    //     if (constrainPitch)
+    //     {
+    //         if (Pitch > 89.0f)
+    //             Pitch = 89.0f;
+    //         if (Pitch < -89.0f)
+    //             Pitch = -89.0f;
+    //     }
 
-        // update Front, Right and Up Vectors using the updated Euler angles
-        updateCameraVectors();
-    }
+    //     // update Front, Right and Up Vectors using the updated Euler angles
+    //     updateCameraVectors();
+    // }
 
     // processes input received from a mouse scroll-wheel event. Only requires input on the vertical wheel-axis
     void ProcessMouseScroll(float yoffset)

@@ -74,17 +74,18 @@ public:
     void Draw(Shader &shader)
     {
         /*
-        Retrieves the appropriate 
+        This code draws the shader
         */
         
         unsigned int diffuseNr = 1, specularNr = 1, normalNr = 1, heightNr = 1;
         for (unsigned int i = 0; i < textures.size(); i++)
         {
-            // activates any onw of GL_TEXTUREi depending on i
+            // activates any one of GL_TEXTUREi depending on i
             glActiveTexture(GL_TEXTURE0 + i); 
             string number;
             string name = textures[i].type;
             // Detech the type of texture in index i and count the number of that particular texture
+            // Detects whether it is a diffuse, specular or other texture type
             if(name == "texture_diffuse")
                 number = std::to_string(diffuseNr++);
             else if(name == "texture_specular")
@@ -125,29 +126,38 @@ private:
     void setupMesh()
     {
         // create buffers/arrays
-        glGenVertexArrays(1, &VAO);
-        glGenBuffers(1, &VBO);
-        glGenBuffers(1, &EBO);
+        glGenVertexArrays(1, &VAO); // we use the VAO so opengl can find the data in the VBO - stores pointers to one or more VBO objects
+        glGenBuffers(1, &VBO); // 1 means 1 3D object
+        glGenBuffers(1, &EBO); // (index buffer) - Tells us the order to pass over the vertices -> helps us only store a reference to a vertex one time 
 
         glBindVertexArray(VAO); // Bind so that subsequent vector operations performed on VAO
         
         // load data into vertex buffers
-        glBindBuffer(GL_ARRAY_BUFFER, VBO); 
+        glBindBuffer(GL_ARRAY_BUFFER, VBO); // binding makes the VBO the current object
         // Store the vertices into the VBO
-        glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex), &vertices[0], GL_STATIC_DRAW);  
+        glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex), &vertices[0], GL_DYNAMIC_DRAW);
+        /*
+        Stream - vertices modified once and used a few once
+        Statics - vertices modified once and used many time
+        Dynamic - vertices modified multiple time and used many times
+
+        Draw - vertices will be modified and used to draw an image on the screen
+        read - 
+        copy - 
+        */
 
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), &indices[0], GL_STATIC_DRAW);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), &indices[0], GL_DYNAMIC_DRAW);
 
-        // set the vertex attribute pointers
+        // set the vertex attribute pointers - allows us to interact with vertex shader outside the script
         // vertex Positions
         glEnableVertexAttribArray(0); // enables vertix attribute at index 0
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
         // vertex normals
-        glEnableVertexAttribArray(1);	
+        glEnableVertexAttribArray(1);
         glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, Normal));
         // vertex texture coords
-        glEnableVertexAttribArray(2);	
+        glEnableVertexAttribArray(2);
         glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, TexCoords));
         // vertex tangent
         glEnableVertexAttribArray(3);
