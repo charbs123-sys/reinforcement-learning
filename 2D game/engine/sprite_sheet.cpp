@@ -8,7 +8,7 @@
 #include <filesystem>
 #include <limits>
 #include <algorithm>
-
+#include <glm/gtc/matrix_transform.hpp>
 
 using json = nlohmann::json;
 
@@ -22,6 +22,31 @@ SpriteSheet::SpriteSheet(const std::string& relative_path_to_sprite_sheet, const
 
     if (!sprite_sheets_data.empty())
         update_uvs_for_frame(sprite_sheets_data[0]);
+
+    set_world_center(glm::vec3(-15.0f, 1.0f, -9.0f));
+    compute_and_set_local_center_min_max_coords();
+    compute_and_set_local_corners();
+}
+
+SpriteSheet::SpriteSheet()
+{
+    relative_path_to_sheet.clear();
+    relative_path_to_json.clear();
+
+    texture_id = 0;
+    vao = 0;
+    vbo = 0;
+    ebo = 0;
+
+    sprite_sheet_width = 0.0f;
+    sprite_sheet_height = 0.0f;
+    timer = 0.0f;
+    current_frame = 0;
+    number_of_animations = 0;
+
+    set_world_center(glm::vec3(0.0f, 0.0f, 0.0f));
+    compute_and_set_local_center_min_max_coords();
+    compute_and_set_local_corners();
 }
 
 void SpriteSheet::load_png_file_bind_texture()
@@ -203,8 +228,14 @@ void SpriteSheet::update_uvs_for_frame(const SpriteSheetFrames& frame)
     glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
 }
 
-void SpriteSheet::Draw()
+void SpriteSheet::Draw(Shader& shader)
 {
+    compute_and_set_model_matrix();
+    compute_and_set_world_min_and_max();
+    compute_and_set_model_bounds();
+    shader.setMat4("model", sprite_model_matrix);
+    
+
     if (texture_id == 0 || vao == 0 || sprite_sheets_data.empty())
         return;
 
@@ -245,14 +276,14 @@ void SpriteSheet::compute_and_set_local_corners()
     };
 }
 
-void SpriteSheet::compute_and_set_world_min_and_max(glm::mat4 model_matrix)
+void SpriteSheet::compute_and_set_world_min_and_max()
 {
     world_min_coords = glm::vec3(std::numeric_limits<float>::max());
     world_max_coords = glm::vec3(std::numeric_limits<float>::lowest());
 
     for (const auto& local_corner : local_corners)
     {
-        glm::vec3 world_corner = glm::vec3(model_matrix * glm::vec4(local_corner, 1.0f));
+        glm::vec3 world_corner = glm::vec3(this->sprite_model_matrix * glm::vec4(local_corner, 1.0f));
         world_min_coords.x = std::min(world_min_coords.x, world_corner.x);
         world_min_coords.y = std::min(world_min_coords.y, world_corner.y);
         world_min_coords.z = std::min(world_min_coords.z, world_corner.z);
@@ -268,9 +299,23 @@ void SpriteSheet::compute_and_set_model_bounds()
     model_max_bounds = glm::vec3(world_max_coords.x + radius, world_min_coords.y, world_max_coords.z + radius);
 }
 
-void SpriteSheet::increment_current_frame()
+void SpriteSheet::increment_current_frame_using_duration(float delta_time)
 {
     if (sprite_sheets_data.empty())
         return;
-    current_frame = (current_frame + 1) % static_cast<int>(sprite_sheets_data.size());
+    timer += delta_time * 1000;
+    if (timer >= sprite_sheets_data[current_frame].duration)
+    {
+        timer -= sprite_sheets_data[current_frame].duration;
+        current_frame = (current_frame + 1) % static_cast<int>(sprite_sheets_data.size());
+    }
+}
+
+void SpriteSheet::compute_and_set_model_matrix()
+{
+    glm::mat4 model_matrix = glm::mat4(1.0f);
+    model_matrix = glm::translate(model_matrix, object_world_center);
+    model_matrix = glm::rotate(model_matrix, glm::radians(180.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+    model_matrix = glm::scale(model_matrix, glm::vec3(5.0, 5.0, 5.0));
+    this->sprite_model_matrix = model_matrix;
 }

@@ -1,89 +1,119 @@
 #include "../Header Files/object_helpers.h"
+#include "../json.hpp"
 
-// void calculate_model_local_center(const Model& model, glm::vec3& outMin, glm::vec3& outMax)
-// {
-//     outMin = glm::vec3(std::numeric_limits<float>::max());
-//     outMax = glm::vec3(std::numeric_limits<float>::lowest());
-//     bool hasVertex = false;
+#include <algorithm>
+#include <filesystem>
+#include <fstream>
+#include <iostream>
 
-//     for (const auto& mesh : model.meshes)
-//     {
-//         for (const auto& vertex : mesh.vertices)
-//         {
-//             hasVertex = true;
-//             outMin.x = std::min(outMin.x, vertex.Position.x);
-//             outMin.y = std::min(outMin.y, vertex.Position.y);
-//             outMin.z = std::min(outMin.z, vertex.Position.z);
-//             outMax.x = std::max(outMax.x, vertex.Position.x);
-//             outMax.y = std::max(outMax.y, vertex.Position.y);
-//             outMax.z = std::max(outMax.z, vertex.Position.z);
-//         }
-//     }
+using json = nlohmann::json;
 
-//     if (!hasVertex)
-//     {
-//         outMin = glm::vec3(0.0f);
-//         outMax = glm::vec3(0.0f);
-//     }
-// }
+LoadMap::LoadMap(const std::string& relative_path_to_map_json, glm::vec3 starting_pos, float tile_world_width, float tile_world_height)
+{
+    this->tile_world_width = tile_world_width;
+    this->tile_world_height = tile_world_height;
+    map_tile_coordinates.clear();
+    map_tiles.clear();
 
+    const std::filesystem::path map_path(relative_path_to_map_json);
+    const std::filesystem::path map_parent = map_path.parent_path();
 
-// BoundingBox model_boundaries(Model Cube, ObjectProperties obj)
-// {
-//     glm::vec3 localMin, localMax;
-//     calculate_model_local_center(Cube, localMin, localMax);
-//     glm::mat4 cubeModel = glm::mat4(1.0f);
-//     cubeModel = glm::translate(cubeModel, glm::vec3(0.0, obj.y_translation, 0.0f));
-//     cubeModel = glm::translate(cubeModel, obj.world_translation);
-//     glm::mat4 cubeModelOffset = glm::translate(cubeModel, glm::vec3(0.0f, 0.0f, obj.z_offset));
-//     if (obj.should_rotate)
-//     {
-//         cubeModel = glm::rotate(cubeModel, glm::radians(90.0f), glm::vec3(1.0, 0.0, 0.0));
-//         cubeModelOffset = glm::rotate(cubeModelOffset, glm::radians(90.0f), glm::vec3(1.0, 0.0, 0.0));
-//     }
-//     cubeModel = glm::scale(cubeModel, obj.scale);
-//     cubeModelOffset = glm::scale(cubeModelOffset, obj.scale);
-   
+    std::ifstream file(relative_path_to_map_json);
+    json data = json::parse(file, nullptr, false);
+    load_sprite_tilesets_from_map(data, map_parent);
 
-//     glm::vec3 localCorners[8] = {
-//         glm::vec3(localMin.x, localMin.y, localMin.z),
-//         glm::vec3(localMax.x, localMin.y, localMin.z),
-//         glm::vec3(localMin.x, localMax.y, localMin.z),
-//         glm::vec3(localMax.x, localMax.y, localMin.z),
-//         glm::vec3(localMin.x, localMin.y, localMax.z),
-//         glm::vec3(localMax.x, localMin.y, localMax.z),
-//         glm::vec3(localMin.x, localMax.y, localMax.z),
-//         glm::vec3(localMax.x, localMax.y, localMax.z)
-//     };
+    const glm::vec3 origin = starting_pos;
 
-//     glm::vec3 worldMin(std::numeric_limits<float>::max());
-//     glm::vec3 worldMax(std::numeric_limits<float>::lowest());
+    for (const auto& layer : data["layers"])
+    {
 
-//     for (const glm::vec3& localCorner : localCorners)
-//     {
-//         glm::vec3 worldCorner = glm::vec3(cubeModel * glm::vec4(localCorner, 1.0f));
-//         worldMin.x = std::min(worldMin.x, worldCorner.x);
-//         worldMin.y = std::min(worldMin.y, worldCorner.y);
-//         worldMin.z = std::min(worldMin.z, worldCorner.z);
-//         worldMax.x = std::max(worldMax.x, worldCorner.x);
-//         worldMax.y = std::max(worldMax.y, worldCorner.y);
-//         worldMax.z = std::max(worldMax.z, worldCorner.z);
-//     }
+        int width = 0;
+        width = layer["width"].get<int>();
 
-//     glm::vec3 cubeMin(worldMin.x - obj.radius, worldMin.y, worldMin.z - obj.radius);
-//     glm::vec3 cubeMax(worldMax.x + obj.radius, worldMax.y, worldMax.z + obj.radius);
-//     return BoundingBox{cubeMin, cubeMax, obj.radius, cubeModelOffset};
-// }
+        const auto& tile_data = layer["data"];
+        for (std::size_t i = 0; i < tile_data.size(); ++i)
+        {
+            const int tile_id = tile_data[i].get<int>();
+            if (tile_id == 0)
+                continue;
 
-// glm::mat4 model_matrices_impose(ObjectProperties obj)
-// {
-//     glm::mat4 model = glm::mat4(1.0f);
-//     model = glm::translate(model, glm::vec3(0.0, obj.y_translation, 0.0));
-//     model = glm::translate(model, obj.world_translation);
-//     if (obj.should_rotate)
-//     {
-//         model = glm::rotate(model, glm::radians(90.0f), glm::vec3(1.0, 0.0, 0.0));
-//     }
-//     model = glm::scale(model, obj.scale);
-//     return model;
-// }
+            const int row = static_cast<int>(i / static_cast<std::size_t>(width));
+            const int col = static_cast<int>(i % static_cast<std::size_t>(width));
+
+            glm::vec3 tile_position = origin;
+            tile_position.x += static_cast<float>(col) * this->tile_world_width;
+            tile_position.y -= static_cast<float>(row) * this->tile_world_height;
+
+            map_tile_coordinates.push_back(tile_position);
+
+            MapTileInstance tile;
+            tile.world_position = tile_position;
+            tile.gid = tile_id;
+            map_tiles.push_back(tile);
+        }
+    }
+}
+
+void LoadMap::load_sprite_tilesets_from_map(const nlohmann::json& parsed_map, const std::filesystem::path& map_parent)
+{
+    sprites_for_map.clear();
+    sprites_for_map.reserve(parsed_map["tilesets"].size());
+
+    for (const auto& tileset : parsed_map["tilesets"])
+    {
+        if (!tileset.contains("image") || !tileset["image"].is_string())
+            continue;
+
+        std::filesystem::path sprite_png_path = (map_parent / tileset["image"].get<std::string>()).lexically_normal();
+        std::filesystem::path sprite_json_path = sprite_png_path;
+        sprite_json_path.replace_extension(".json");
+
+        SpriteSheet new_sprite(sprite_png_path.string(), sprite_json_path.string());
+
+        SpriteGid tileset_sprite;
+
+        tileset_sprite.sprites_for_map = new_sprite;
+        tileset_sprite.gid = tileset.value("firstgid", 0);
+        tileset_sprite.first_gid = tileset.value("firstgid", 0);
+        tileset_sprite.last_gid = tileset.value("firstgid", 0) + std::max(1, tileset.value("tilecount", 1)) - 1;
+        tileset_sprite.tile_width = tileset.value("tilewidth", 0);
+        tileset_sprite.columns = tileset.value("columns", 0);
+        tileset_sprite.tile_height = tileset.value("tileheight", 0);
+        
+        sprites_for_map.push_back(tileset_sprite);
+    }
+}
+
+void LoadMap::draw_map(Shader& shader)
+{
+    for (const auto& tile : map_tiles)
+    {
+        SpriteSheet* sprite_to_draw = find_sprite_using_gid(tile.gid);
+        if (sprite_to_draw == nullptr)
+            continue;
+
+        sprite_to_draw->set_world_center(tile.world_position);
+        sprite_to_draw->Draw(shader);
+    }
+}
+
+SpriteSheet* LoadMap::find_sprite_using_gid(int gid)
+{
+    for (auto& sprite : sprites_for_map)
+    {
+        if (gid >= sprite.first_gid && gid <= sprite.last_gid)
+        {
+            return &sprite.sprites_for_map;
+        }
+    }
+
+    return nullptr;
+}
+
+void LoadMap::increment_sprites_for_map_with_duration(float delta_time)
+{
+    for (auto& sprite : sprites_for_map)
+    {
+        sprite.sprites_for_map.increment_current_frame_using_duration(delta_time);
+    }
+}

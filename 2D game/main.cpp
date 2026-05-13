@@ -55,21 +55,12 @@ int main() {
 
     Shader ourShader("shaders/sample.vs", "shaders/sample.fs");
 
-    Model MarbelFloor("assets/floor-marble-tiled-floor/source/FloorTiledMarble.fbx");
+    SpriteSheet player_sprite("assets/asperite_sprite_sheet/player_sprite_run.png", "assets/asperite_sprite_sheet/player_sprite_run.json");
 
-
-    Model cube_model("assets/blender_minecraft/minecraft.obj");
-    cube_model.set_world_center(glm::vec3(-15.0f, 0.0f, -9.0f));
-    cube_model.compute_and_set_local_center_min_max_coords();
-    cube_model.compute_and_set_local_corners();
-
-    SpriteSheet sprite_sheet_model("assets/asperite_sprite_sheet/player_sprite_run.png", "assets/asperite_sprite_sheet/player_sprite_run.json");
-    sprite_sheet_model.set_world_center(glm::vec3(-15.0f, 1.0f, -9.0f));
-    sprite_sheet_model.compute_and_set_local_center_min_max_coords();
-    sprite_sheet_model.compute_and_set_local_corners();
+    LoadMap level_one_map("assets/level_one/level_one.json", player_sprite.object_world_center, 5, 5);
 
     Camera camera;
-    camera.set_relative_camera_position(sprite_sheet_model.object_world_center);
+    camera.set_relative_camera_position(player_sprite.object_world_center);
     glm::vec3 camera_lookat_target(0.0f, 0.0f, 0.0f);
 
     glfwSwapInterval(1);
@@ -81,33 +72,23 @@ int main() {
         ourShader.use_shader_program();
         game_window.compute_fps();
         game_window.update_window_width_height();
-        processInput(game_window.get_window(), game_window.get_delta_time(), camera, sprite_sheet_model);
-
+        processInput(game_window.get_window(), game_window.get_delta_time(), camera, player_sprite);
+        std::cout << "this is th ecurrent time - " << game_window.get_delta_time() << std::endl;
         
-        camera.set_relative_camera_position(sprite_sheet_model.object_world_center);
+        camera.set_relative_camera_position(player_sprite.object_world_center);
+        // camera.configure_projection_view_matrices();
         
-        glm::vec3 camera_lookat_target = sprite_sheet_model.object_world_center + sprite_sheet_model.object_local_center;
+        glm::vec3 camera_lookat_target = player_sprite.object_world_center + player_sprite.object_local_center;
         glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f); // gives the closest and furthest point we can see
         glm::mat4 view = camera.get_view_matrix(camera.Position, camera_lookat_target, fixCamera);
         ourShader.setMat4("view", view); // indicates which direction and how much to move the world
         ourShader.setMat4("projection", projection); // 
 
-        glm::mat4 player_model_matrix = glm::mat4(1.0f);
-        player_model_matrix = glm::translate(player_model_matrix, sprite_sheet_model.object_world_center);
-        player_model_matrix = glm::rotate(player_model_matrix, glm::radians(180.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-        player_model_matrix = glm::scale(player_model_matrix, glm::vec3(5.0, 5.0, 5.0));
-        sprite_sheet_model.compute_and_set_world_min_and_max(player_model_matrix);
-        sprite_sheet_model.compute_and_set_model_bounds();
-        ourShader.setMat4("model", player_model_matrix);
-        sprite_sheet_model.increment_current_frame();
-        sprite_sheet_model.Draw();
+        player_sprite.Draw(ourShader);
+        level_one_map.draw_map(ourShader);
 
-        glm::mat4 cube_model_matrix = glm::mat4(1.0f);
-        cube_model_matrix = glm::translate(cube_model_matrix, cube_model.object_world_center);
-        cube_model.compute_and_set_world_min_and_max(cube_model_matrix);
-        cube_model.compute_and_set_model_bounds();
-        ourShader.setMat4("model", cube_model_matrix);
-        cube_model.Draw(ourShader);
+        player_sprite.increment_current_frame_using_duration(game_window.get_delta_time());
+        level_one_map.increment_sprites_for_map_with_duration(game_window.get_delta_time());
 
         glfwSwapBuffers(game_window.get_window());
         glfwPollEvents();

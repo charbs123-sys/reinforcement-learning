@@ -10,8 +10,11 @@ drl-2ed/
 learning_opengl/
 sample_game/assets
 sample_game/devlogs
+sample_game/checkpoints
+sample_game/plots
 2D game/assets
 2D game/config
 2D game/devlogs
 assimp/
 Blender
+drl-2ed
